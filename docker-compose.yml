@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+    php:
+        build:
+            context: ./.docker/php/
+            args:
+                WWW_UID: '${WWW_UID:-1000}'
+                WWW_GID: '${WWW_GID:-1000}'
+        restart: unless-stopped
+        volumes:
+            - ./:/app
+        networks:
+            - sail
+        depends_on:
+            - db
+
+    webserver:
+        image: nginx:1.21.6
+        restart: unless-stopped
+        ports:
+            - '${APP_PORT:-80}:80'
+        volumes:
+            - ./.docker/webserver/app.conf:/etc/nginx/conf.d/default.conf
+            - ./:/app
+        networks:
+            - sail
+        depends_on:
+            - php
+
+    db:
+        image: mysql:8
+        restart: unless-stopped
+        ports:
+            - '${DB_HOST_PORT:-3306}:3306'
+        environment:
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+            MYSQL_DATABASE: ${DB_DATABASE:-my_database}
+        volumes:
+            - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+        networks:
+            - sail
+
+networks:
+    sail:
+        driver: bridge
